@@ -2958,12 +2958,38 @@ const State=(function(){
         // Absorb drift ONLY if no backup exists (backup already has correct elapsed)
         if(!_hadBackup&&_D.timer.running&&_D.timer.startTs){
           const diff=Math.floor((Date.now()-_D.timer.startTs)/1000);
-          // FIX: Cap drift absorption at 3 hours (10800s).
-          // If more time passed, the laptop was shut down / sleeping — don't count it.
-          // Without this cap, shutting down with timer running adds hours of ghost time.
-          const MAX_DRIFT_SECS=3*60*60; // 3 hours
+          const MAX_DRIFT_SECS=3*60*60; // 3 hours max
           const absorbed=Math.min(diff,MAX_DRIFT_SECS);
-          if(absorbed>0)_D.timer.saved=(_D.timer.saved||0)+absorbed;
+
+          // CRITICAL FIX: Check which day the timer started on.
+          // If it started YESTERDAY (or earlier), commit absorbed time to THAT day's log
+          // instead of leaving it in timer.saved (which shows as "Total today").
+          // Without this, shutting down with timer running makes yesterday's time
+          // appear as today's "Total today" and inflates today's ring/stats.
+          const startDate=new Date(_D.timer.startTs);
+          const startDay=startDate.getFullYear()+'-'+
+            String(startDate.getMonth()+1).padStart(2,'0')+'-'+
+            String(startDate.getDate()).padStart(2,'0');
+          const todayDate=new Date();
+          const todayDay=todayDate.getFullYear()+'-'+
+            String(todayDate.getMonth()+1).padStart(2,'0')+'-'+
+            String(todayDate.getDate()).padStart(2,'0');
+
+          if(startDay!==todayDay && absorbed>0){
+            // Timer started on a DIFFERENT day — commit to that day's log
+            const existing=_D.logs[startDay]||{studySecs:0,completedHabits:[],score:0};
+            _D.logs[startDay]={...existing,studySecs:(existing.studySecs||0)+absorbed};
+            // Add as a session on that day too
+            if(Array.isArray(_D.sessions)){
+              _D.sessions=[..._D.sessions,{date:startDay,duration:absorbed,time:'auto'}];
+              if(_D.sessions.length>500)_D.sessions=_D.sessions.slice(-500);
+            }
+            // timer.saved stays 0 — today starts fresh
+            _D.timer.saved=0;
+          } else if(absorbed>0){
+            // Timer started today — add to timer.saved (user can continue or save)
+            _D.timer.saved=(_D.timer.saved||0)+absorbed;
+          }
           _D.timer.running=false;_D.timer.startTs=null;
         }
         if(_D.sessions.length>MAX_SESSIONS)_D.sessions=_D.sessions.slice(-MAX_SESSIONS);
