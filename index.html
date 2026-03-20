@@ -2958,7 +2958,12 @@ const State=(function(){
         // Absorb drift ONLY if no backup exists (backup already has correct elapsed)
         if(!_hadBackup&&_D.timer.running&&_D.timer.startTs){
           const diff=Math.floor((Date.now()-_D.timer.startTs)/1000);
-          if(diff>0)_D.timer.saved=(_D.timer.saved||0)+diff;
+          // FIX: Cap drift absorption at 3 hours (10800s).
+          // If more time passed, the laptop was shut down / sleeping — don't count it.
+          // Without this cap, shutting down with timer running adds hours of ghost time.
+          const MAX_DRIFT_SECS=3*60*60; // 3 hours
+          const absorbed=Math.min(diff,MAX_DRIFT_SECS);
+          if(absorbed>0)_D.timer.saved=(_D.timer.saved||0)+absorbed;
           _D.timer.running=false;_D.timer.startTs=null;
         }
         if(_D.sessions.length>MAX_SESSIONS)_D.sessions=_D.sessions.slice(-MAX_SESSIONS);
