@@ -3278,373 +3278,224 @@ const UI=(function(){
   }
 
   // Quote
-  const QUOTES=[
-    {t:'The secret of getting ahead is getting started.',a:'Mark Twain'},
-    {t:"It always seems impossible until it's done.",a:'Nelson Mandela'},
-    {t:"Don't watch the clock; do what it does. Keep going.",a:'Sam Levenson'},
-    {t:'Success is the sum of small efforts repeated day in and day out.',a:'Robert Collier'},
-    {t:'The only way to do great work is to love what you do.',a:'Steve Jobs'},
-    {t:"Believe you can and you're halfway there.",a:'Theodore Roosevelt'},
-    {t:"Hard work beats talent when talent doesn't work hard.",a:'Tim Notke'},
-    {t:"You don't have to be great to start, but you have to start to be great.",a:'Zig Ziglar'},
-    {t:'Push yourself, because no one else is going to do it for you.',a:'Unknown'},
-    {t:'Great things never come from comfort zones.',a:'Unknown'},
-    {t:'Dream it. Wish it. Do it.',a:'Unknown'},
-    {t:'Little by little, a little becomes a lot.',a:'Tanzanian Proverb'},
-    {t:'The expert in anything was once a beginner.',a:'Helen Hayes'},
-    {t:"Don't stop when you're tired. Stop when you're done.",a:'Unknown'},
-    {t:'Progress, not perfection.',a:'Unknown'},
-    {t:'Your future self is watching you right now.',a:'Unknown'},
-    {t:'Discipline is choosing what you want most over what you want now.',a:'Unknown'},
-    {t:"You've survived 100% of your hard days so far.",a:'Unknown'},
-    {t:'Focus is knowing what to ignore.',a:'Unknown'},
-    {t:'Your only competition is who you were yesterday.',a:'Unknown'},
-    {t:'Every study session is an investment in your future.',a:'Unknown'},
-    {t:'Motivation gets you started. Habit keeps you going.',a:'Jim Ryun'},
-    {t:'We are what we repeatedly do. Excellence is not an act but a habit.',a:'Aristotle'},
-    {t:'The difference between ordinary and extraordinary is that little extra.',a:'Jimmy Johnson'},
-    {t:'Do something today that your future self will thank you for.',a:'Unknown'},
-    {t:'You are braver than you believe, stronger than you seem.',a:'A.A. Milne'},
-    {t:'Act as if what you do makes a difference. It does.',a:'William James'},
-    {t:'Quality is not an act, it is a habit.',a:'Aristotle'},
-    {t:'Start where you are. Use what you have. Do what you can.',a:'Arthur Ashe'},
-    {t:'It does not matter how slowly you go as long as you do not stop.',a:'Confucius'},
-    {t:'Everything you need is already inside you.',a:'Unknown'},
-    {t:'The pain you feel today will be the strength you feel tomorrow.',a:'Unknown'},
-    {t:'Success is not final, failure is not fatal — it is the courage to continue.',a:'Winston Churchill'},
-    {t:"You miss 100% of the shots you don't take.",a:'Wayne Gretzky'},
-    {t:'In the middle of every difficulty lies opportunity.',a:'Albert Einstein'},
-    {t:'What you do today can improve all your tomorrows.',a:'Ralph Marston'},
-    {t:'Strive for progress, not perfection.',a:'Unknown'},
-    {t:'The harder you work, the luckier you get.',a:'Gary Player'},
-    {t:'Keep going. Everything you need will come to you at the right time.',a:'Unknown'},
-    {t:'Either you run the day, or the day runs you.',a:'Jim Rohn'},
-    {t:'The only limit to our realization of tomorrow is our doubts of today.',a:'Franklin D. Roosevelt'},
-    {t:"Don't count the days, make the days count.",a:'Muhammad Ali'},
-    {t:'Small steps in the right direction can turn out to be the biggest step of your life.',a:'Unknown'},
-    {t:'Learning never exhausts the mind.',a:'Leonardo da Vinci'},
-    {t:'An investment in knowledge pays the best interest.',a:'Benjamin Franklin'},
-    {t:'Knowledge is power. Power to change yourself and the world.',a:'Unknown'},
-    {t:'Education is not preparation for life; education is life itself.',a:'John Dewey'},
-    {t:'The more that you read, the more things you will know.',a:'Dr. Seuss'},
-    {t:'The beautiful thing about learning is nobody can take it away from you.',a:'B.B. King'},
-    {t:'A year from now you may wish you had started today.',a:'Karen Lamb'},
-    {t:'Hardships often prepare ordinary people for an extraordinary destiny.',a:'C.S. Lewis'},
-    {t:'Challenges are what make life interesting. Overcoming them makes life meaningful.',a:'Joshua Marine'},
-    {t:'If you want to achieve greatness, stop asking for permission.',a:'Unknown'},
-    {t:'Things work out best for those who make the best of how things work out.',a:'John Wooden'},
-    {t:'Success is walking from failure to failure with no loss of enthusiasm.',a:'Winston Churchill'},
-    {t:'Just when the caterpillar thought the world was ending, it became a butterfly.',a:'Proverb'},
-    {t:'The only place where success comes before work is in the dictionary.',a:'Vidal Sassoon'},
-    {t:'Never give up on a dream just because of the time it will take.',a:'Earl Nightingale'},
-    {t:'If you do what you always did, you will get what you always got.',a:'Albert Einstein'},
-    {t:'Study while others are sleeping; work while others are loafing.',a:'William A. Ward'},
-    {t:'Excellence is not a destination but a continuous journey that never ends.',a:'Brian Tracy'},
-    {t:'Your passion is waiting for your courage to catch up.',a:'Isabelle Lafleche'},
-    {t:'All our dreams can come true, if we have the courage to pursue them.',a:'Walt Disney'},
-    {t:'Good things come to those who work for them.',a:'Unknown'},
-    {t:'Be patient with yourself. Self-growth is tender ground.',a:'Stephen Covey'},
-    {t:'You will never always be motivated. You have to learn to be disciplined.',a:'Unknown'},
-    {t:'The secret of your future is hidden in your daily routine.',a:'Mike Murdock'},
-    {t:'Success is the progressive realization of a worthy goal.',a:'Earl Nightingale'},
-    {t:"Don't wait for opportunity. Create it.",a:'Unknown'},
-    {t:'The best time to plant a tree was 20 years ago. The second best time is now.',a:'Chinese Proverb'},
-    {t:'Wake up with determination. Go to bed with satisfaction.',a:'Unknown'},
-    {t:'There are no shortcuts to any place worth going.',a:'Beverly Sills'},
-    {t:'Dream big. Start small. Act now.',a:'Robin Sharma'},
-    {t:'Absorb what is useful, reject what is useless.',a:'Bruce Lee'},
-    {t:'The man who moves a mountain begins by carrying away small stones.',a:'Confucius'},
-    {t:"You don't have to see the whole staircase. Just take the first step.",a:'Martin Luther King Jr.'},
-    {t:'Believe in yourself and all that you are.',a:'Christian D. Larson'},
-    {t:'What you get by achieving your goals is not as important as what you become.',a:'Henry David Thoreau'},
-    {t:'Fall seven times, stand up eight.',a:'Japanese Proverb'},
-    {t:"Courage doesn't always roar. Sometimes it's the quiet voice that says try again.",a:'Mary Anne Radmacher'},
-    {t:'The people crazy enough to think they can change the world are the ones who do.',a:'Steve Jobs'},
-    {t:'A goal without a plan is just a wish.',a:'Antoine de Saint-Exupéry'},
-    {t:"You don't need more time. You need to decide.",a:'Seth Godin'},
-    {t:'Work hard in silence, let your success be your noise.',a:'Frank Ocean'},
-    {t:'The harder the battle, the sweeter the victory.',a:'Les Brown'},
-    {t:'Make each day your masterpiece.',a:'John Wooden'},
-    {t:'Genius is 1% inspiration and 99% perspiration.',a:'Thomas Edison'},
-    {t:'Either I will find a way, or I will make one.',a:'Philip Sidney'},
-    {t:"Be so good they can't ignore you.",a:'Steve Martin'},
-    {t:'Consistency is the key to achievement.',a:'Unknown'},
-    {t:'Your mindset determines your success.',a:'Unknown'},
-    {t:'One day or day one — you decide.',a:'Unknown'},
-    {t:'Energy and persistence conquer all things.',a:'Benjamin Franklin'},
-    {t:'Action is the foundational key to all success.',a:'Pablo Picasso'},
-    {t:"Don't limit your challenges — challenge your limits.",a:'Unknown'},
-    {t:'You have to be odd to be number one.',a:'Dr. Seuss'},
-    {t:'It always seems impossible until somebody does it.',a:'Unknown'},
-    {t:'Earn with your mind, not your time.',a:'Naval Ravikant'},
-    {t:'The starting point of all achievement is desire.',a:'Napoleon Hill'},
-    {t:'Try not to become a person of success but rather a person of value.',a:'Albert Einstein'},
+  // ══════════════════════════════════════════════════════════════
+  // PERFORMANCE-AWARE QUOTE ENGINE
+  // Quotes are selected based on today's score, streak, and trend.
+  // Mood categories: struggling / low / okay / good / great / perfect
+  // ══════════════════════════════════════════════════════════════
+
+  const PERF_QUOTES = {
+
+    // 0–15%: Haven't started or barely done anything today
+    struggling: [
+      {t:"The hardest part is starting. You're one action away.",a:'Unknown'},
+      {t:'Every expert was once a beginner. Begin.',a:'Unknown'},
+      {t:"You don't have to be great to start, but you have to start to be great.",a:'Zig Ziglar'},
+      {t:'A year from now you may wish you had started today.',a:'Karen Lamb'},
+      {t:'The best time to start was yesterday. The next best time is right now.',a:'Unknown'},
+      {t:"Today's actions are tomorrow's results. Start small.",a:'Unknown'},
+      {t:'Even the longest journey starts with one small step. Take it.',a:'Unknown'},
+      {t:'You owe yourself the life you imagine. Start now.',a:'Unknown'},
+      {t:'One small positive thought in the morning can change your whole day.',a:'Unknown'},
+      {t:'Motivation follows action — not the other way around. Move first.',a:'Unknown'},
+      {t:'The secret of getting ahead is getting started.',a:'Mark Twain'},
+      {t:'Done is better than perfect. Just begin.',a:'Unknown'},
+    ],
+
+    // 15–35%: Started but below your usual pace
+    low: [
+      {t:"You've started. That already makes you better than most. Keep going.",a:'Unknown'},
+      {t:"It's okay to be slow — it's not okay to stop.",a:'Unknown'},
+      {t:'Progress is progress, no matter how small. Add to it.',a:'Unknown'},
+      {t:'The days you feel like quitting are the days that define you.',a:'Unknown'},
+      {t:'One more hour today can change how you feel tomorrow.',a:'Unknown'},
+      {t:'Push a little more. You will thank yourself tonight.',a:'Unknown'},
+      {t:"Your body says rest, your future self says push. Listen to your future self.",a:'Unknown'},
+      {t:'Slow days are still days you showed up. Build on that.',a:'Unknown'},
+      {t:"You've survived 100% of your hard days so far. This is just another one.",a:'Unknown'},
+      {t:'Small actions done consistently beat rare bursts of motivation.',a:'Unknown'},
+      {t:"Don't stop when you're tired. Stop when you're done.",a:'Unknown'},
+      {t:'Your goals do not care how you feel today. Show up anyway.',a:'Unknown'},
+    ],
+
+    // 35–60%: Decent but below your recent average
+    below_average: [
+      {t:"You're capable of more than today shows. You know it.",a:'Unknown'},
+      {t:"Your past scores say you can do better. Prove them right.",a:'Unknown'},
+      {t:'Half done is a start. Finish what you came here to do.',a:'Unknown'},
+      {t:"Good is the enemy of great. Don't settle for today's pace.",a:'Unknown'},
+      {t:'Raise your standard. Your yesterday-self set the bar higher.',a:'Unknown'},
+      {t:'The gap between where you are and where you can be — close it now.',a:'Unknown'},
+      {t:'Comfortable is the enemy of progress. Push past comfort.',a:'Unknown'},
+      {t:'You have more left in you. Use it.',a:'Unknown'},
+      {t:'A little more effort today adds up to a different life.',a:'Unknown'},
+      {t:"You're not doing badly. But you can do better. You know this.",a:'Unknown'},
+    ],
+
+    // 60–80%: On track with your usual pace
+    on_track: [
+      {t:"You're on track. Don't slow down now.",a:'Unknown'},
+      {t:'Solid effort. Stay consistent — that is how habits form.',a:'Unknown'},
+      {t:"Consistency beats intensity. You're proving that today.",a:'Unknown'},
+      {t:'Good pace. The finish line rewards people who maintain, not just sprint.',a:'Unknown'},
+      {t:'You are building the version of yourself that future-you will be proud of.',a:'Unknown'},
+      {t:'Every rep counts. Every hour counts. Keep adding.',a:'Unknown'},
+      {t:'Discipline is doing this on the days you do not feel like it. Today is proof.',a:'Unknown'},
+      {t:"You're doing what most people only plan to do. That's the difference.",a:'Unknown'},
+      {t:'Momentum is a superpower. You have it right now. Protect it.',a:'Unknown'},
+      {t:'Motivation gets you started. Habit keeps you going.',a:'Jim Ryun'},
+      {t:'We are what we repeatedly do. Excellence is not an act but a habit.',a:'Aristotle'},
+      {t:'Your only competition is who you were yesterday.',a:'Unknown'},
+    ],
+
+    // 80–95%: Doing better than usual
+    great: [
+      {t:"You're outperforming your own average today. This is who you are becoming.",a:'Unknown'},
+      {t:'Strong day. This is what building a great life looks like.',a:'Unknown'},
+      {t:'Top performance. Keep this energy — it compounds.',a:'Unknown'},
+      {t:"You're in the zone. Don't break it.",a:'Unknown'},
+      {t:'This is the version of you that your goals were waiting for.',a:'Unknown'},
+      {t:"Great days like this don't happen by accident. You earned this.",a:'Unknown'},
+      {t:"Better than yesterday. Better than last week. You're trending up.",a:'Unknown'},
+      {t:'Your future self is watching you right now, and smiling.',a:'Unknown'},
+      {t:'Excellence is not a destination but a continuous journey that never ends.',a:'Brian Tracy'},
+      {t:'Hard work beats talent when talent does not work hard.',a:'Tim Notke'},
+      {t:'Work hard in silence. Let your results make the noise.',a:'Unknown'},
+    ],
+
+    // 95–100%: Goal crushed / near perfect day
+    perfect: [
+      {t:"Goal crushed. This is what a winning day looks like. Remember this feeling.",a:'Unknown'},
+      {t:'100%. Some people dream about days like this. You lived it.',a:'Unknown'},
+      {t:"Perfect day. Lock this in — this is your new minimum.",a:'Unknown'},
+      {t:"You didn't just meet the goal. You became someone who meets goals.",a:'Unknown'},
+      {t:"The best days don't happen by luck. You built this one habit by habit.",a:'Unknown'},
+      {t:'Complete. Consistent. Unstoppable. That is you today.',a:'Unknown'},
+      {t:"When you're this locked in, nothing can stop you. Stay here.",a:'Unknown'},
+      {t:'Make each day your masterpiece.',a:'John Wooden'},
+      {t:"You're not the same person who started this streak. You've grown.",a:'Unknown'},
+      {t:'Excellence is doing ordinary things extraordinarily well. That was today.',a:'John W. Gardner'},
+    ],
+
+    // Streak milestones (shown when streak hits certain numbers)
+    streak: {
+      3:  {t:'3 days in a row. The habit is forming. Do not break the chain.',a:'Unknown'},
+      7:  {t:'One full week of showing up. Your brain is rewiring itself.',a:'Unknown'},
+      14: {t:'Two weeks straight. This is no longer willpower — it is identity.',a:'Unknown'},
+      21: {t:'21 days. Science says the habit is now automatic. Keep going.',a:'Unknown'},
+      30: {t:'30 day streak. You are in the top 1% of people who start and actually continue.',a:'Unknown'},
+      60: {t:'60 days. You are not the same person you were two months ago.',a:'Unknown'},
+      100:{t:'100 day streak. This is extraordinary. You have truly transformed.',a:'Unknown'},
+    },
+
+    // Fallback — generic good quotes
+    fallback: [
+      {t:"It always seems impossible until it's done.",a:'Nelson Mandela'},
+      {t:'Success is the sum of small efforts repeated day in and day out.',a:'Robert Collier'},
+      {t:'Discipline is choosing what you want most over what you want now.',a:'Unknown'},
+      {t:'Do something today that your future self will thank you for.',a:'Unknown'},
+      {t:"Be so good they can't ignore you.",a:'Steve Martin'},
+    ],
+  };
+
+  // Flat array for backward compat (click-to-cycle still works)
+  const QUOTES = [
+    ...PERF_QUOTES.struggling,
+    ...PERF_QUOTES.low,
+    ...PERF_QUOTES.below_average,
+    ...PERF_QUOTES.on_track,
+    ...PERF_QUOTES.great,
+    ...PERF_QUOTES.perfect,
+    ...PERF_QUOTES.fallback,
   ];
+
   let _qi=0;
   let _explodingQuote=false;
+  let _perfQuoteOverride=null; // set when performance-pick is active
 
-  // ── Realistic white powder explosion ─────────────────────────
-  function _burstAt(el){
-    let canvas=document.getElementById('motiv-burst-canvas');
-    if(!canvas){
-      canvas=document.createElement('canvas');
-      canvas.id='motiv-burst-canvas';
-      canvas.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';
-      document.body.appendChild(canvas);
-    }
-    canvas.width=window.innerWidth;
-    canvas.height=window.innerHeight;
-    const ctx=canvas.getContext('2d');
-    const r=el.getBoundingClientRect();
-    const cx=r.left+r.width/2;
-    const cy=r.top+r.height/2;
+  // ── Performance score for today (real-time) ────────────────────
+  function _todayScore(){
+    try{
+      const st=State.get();
+      const td=_today();
+      const log=st.logs[td]||{};
+      const active=_activeHabitsOn(st.habits,td);
+      const gs=st.settings.goalHours*3600;
+      const timerSecs=(log.studySecs||0)+(st.timer.running?Timer.secs():0);
+      const sp=gs?Math.min(100,(timerSecs/gs)*100):0;
+      const hp=active.length?(((log.completedHabits||[]).length/active.length)*100):0;
+      return Math.round(sp*0.6+hp*0.4);
+    }catch(_){return -1;}
+  }
 
-    const pts=[];
-
-    // ── 1. DENSE CENTRAL CLOUD — large billowing white mass
-    for(let i=0;i<32;i++){
-      const a=Math.random()*Math.PI*2;
-      const sp=0.5+Math.random()*3.5;
-      const sz=55+Math.random()*90;
-      pts.push({
-        x:cx+(Math.random()-.5)*50,
-        y:cy+(Math.random()-.5)*35,
-        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-0.5,
-        grav:-0.012,
-        sz, grow:3.5+Math.random()*3.0,
-        al:0.6+Math.random()*0.3,
-        decay:0.005+Math.random()*0.005,
-        t:'cloud'
-      });
-    }
-
-    // ── 2. RANDOM STREAKS — fully random angles, random lengths, random clustering
-    for(let i=0;i<52;i++){
-      // Pure random angle — no uniform distribution
-      const a=Math.random()*Math.PI*2;
-      // Random speed with high variance — some fast, some slow
-      const sp=6+Math.pow(Math.random(),0.5)*30;
-      // Random length — very uneven
-      const len=30+Math.random()*200;
-      pts.push({
-        x:cx+(Math.random()-.5)*20,
-        y:cy+(Math.random()-.5)*15,
-        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
-        grav:0.05+Math.random()*0.08,
-        len, sz:0.8+Math.random()*4.0,
-        al:0.7+Math.random()*0.3,
-        decay:0.015+Math.random()*0.018,
-        t:'streak'
-      });
-    }
-
-    // ── 3. FINE WHITE DUST — chaotic hazy cloud (random speed bias)
-    for(let i=0;i<380;i++){
-      const a=Math.random()*Math.PI*2;
-      // Non-uniform speed — use squared random so many slow, few very fast
-      const sp=0.3+Math.pow(Math.random(),0.6)*18;
-      const bright=195+Math.floor(Math.random()*60);
-      pts.push({
-        x:cx+(Math.random()-.5)*70,
-        y:cy+(Math.random()-.5)*50,
-        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-0.8,
-        grav:0.03+Math.random()*0.08,
-        sz:0.4+Math.random()*3.0,
-        al:0.6+Math.random()*0.4,
-        decay:0.009+Math.random()*0.020,
-        col:`rgb(${bright},${bright},${bright})`,
-        t:'dust'
-      });
-    }
-
-    // ── 4. ORANGE EMBERS — random burst, not uniform, gravity-heavy
-    for(let i=0;i<120;i++){
-      const a=Math.random()*Math.PI*2;
-      // Clustered near certain directions (random per explosion)
-      const bias=Math.random()*Math.PI*2; // random bias angle each time
-      const biasedA=a+Math.sin(a-bias)*0.8; // slight pull toward bias
-      const sp=2+Math.pow(Math.random(),0.4)*22;
-      const g2=80+Math.floor(Math.random()*70);
-      pts.push({
-        x:cx+(Math.random()-.5)*35,
-        y:cy+(Math.random()-.5)*25,
-        vx:Math.cos(biasedA)*sp, vy:Math.sin(biasedA)*sp-1.5,
-        grav:0.12+Math.random()*0.12,
-        sz:0.6+Math.random()*2.8,
-        al:1,
-        decay:0.012+Math.random()*0.022,
-        col:`rgb(249,${g2},0)`,
-        t:'ember'
-      });
-    }
-
-    // ── 5. CHUNKY POWDER CLUMPS — thick irregular blobs
-    for(let i=0;i<26;i++){
-      const a=Math.random()*Math.PI*2;
-      const sp=4+Math.random()*14;
-      pts.push({
-        x:cx+(Math.random()-.5)*70,
-        y:cy+(Math.random()-.5)*55,
-        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-2,
-        grav:0.10+Math.random()*0.08,
-        sz:10+Math.random()*22,
-        al:0.85+Math.random()*0.15,
-        decay:0.010+Math.random()*0.009,
-        t:'clump'
-      });
-    }
-
-    // ── 6. THIN TRAILING WISPS — hair-like velocity trails
-    for(let i=0;i<35;i++){
-      const a=Math.random()*Math.PI*2;
-      const sp=8+Math.random()*20;
-      pts.push({
-        x:cx+(Math.random()-.5)*30,
-        y:cy+(Math.random()-.5)*20,
-        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-1.5,
-        grav:0.05,
-        sz:0.6+Math.random()*1.2,
-        al:0.65+Math.random()*0.3,
-        decay:0.013+Math.random()*0.018,
-        t:'wisp'
-      });
-    }
-
-    let raf;
-    const draw=()=>{
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      let alive=false;
-
-      for(const p of pts){
-        if(p.al<=0) continue;
-        alive=true;
-        p.vy+=p.grav;
-        p.x+=p.vx; p.y+=p.vy;
-        p.al-=p.decay;
-        p.vx*=0.983; p.vy*=0.983;
-
-        const a=Math.max(0,p.al);
-        ctx.save();
-        ctx.globalAlpha=a;
-
-        if(p.t==='cloud'){
-          p.sz+=p.grow;
-          const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.sz);
-          g.addColorStop(0,  `rgba(255,255,255,${a*0.88})`);
-          g.addColorStop(0.4,`rgba(245,245,245,${a*0.52})`);
-          g.addColorStop(0.75,`rgba(230,230,230,${a*0.20})`);
-          g.addColorStop(1,  `rgba(220,220,220,0)`);
-          ctx.fillStyle=g;
-          ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,Math.PI*2); ctx.fill();
-
-        } else if(p.t==='streak'){
-          const mag=Math.hypot(p.vx,p.vy)||1;
-          const tx=p.x-p.vx*(p.len/mag);
-          const ty=p.y-p.vy*(p.len/mag);
-          const g=ctx.createLinearGradient(tx,ty,p.x,p.y);
-          g.addColorStop(0,`rgba(255,255,255,0)`);
-          g.addColorStop(0.5,`rgba(255,255,255,${a*0.5})`);
-          g.addColorStop(1,`rgba(255,255,255,${a})`);
-          ctx.strokeStyle=g;
-          ctx.lineWidth=p.sz;
-          ctx.lineCap='round';
-          ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(p.x,p.y); ctx.stroke();
-
-        } else if(p.t==='dust'){
-          ctx.fillStyle=p.col;
-          ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,Math.PI*2); ctx.fill();
-
-        } else if(p.t==='ember'){
-          // Orange tiny particle with faint glow
-          ctx.shadowBlur=3;
-          ctx.shadowColor=p.col;
-          ctx.fillStyle=p.col;
-          ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,Math.PI*2); ctx.fill();
-          ctx.shadowBlur=0;
-
-        } else if(p.t==='clump'){
-          const rx=p.sz*(0.75+Math.random()*0.5);
-          const ry=p.sz*(0.55+Math.random()*0.45);
-          const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rx);
-          g.addColorStop(0,`rgba(255,255,255,${a})`);
-          g.addColorStop(0.6,`rgba(240,240,240,${a*0.7})`);
-          g.addColorStop(1,`rgba(220,220,220,0)`);
-          ctx.fillStyle=g;
-          ctx.beginPath();
-          ctx.ellipse(p.x,p.y,rx,ry,p.vx*0.08,0,Math.PI*2);
-          ctx.fill();
-
-        } else if(p.t==='wisp'){
-          ctx.strokeStyle=`rgba(255,255,255,${a*0.7})`;
-          ctx.lineWidth=p.sz;
-          ctx.lineCap='round';
-          ctx.beginPath();
-          ctx.moveTo(p.x,p.y);
-          ctx.lineTo(p.x-p.vx*7,p.y-p.vy*7);
-          ctx.stroke();
-        }
-
-        ctx.restore();
+  // ── Average score over last N days (excluding today) ──────────
+  function _recentAvg(days){
+    try{
+      const logs=State.get().logs;
+      const scores=[];
+      for(let i=1;i<=days;i++){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        if(logs[k]&&logs[k].score!=null)scores.push(logs[k].score);
       }
-
-      if(alive) raf=requestAnimationFrame(draw);
-      else ctx.clearRect(0,0,canvas.width,canvas.height);
-    };
-
-    raf=requestAnimationFrame(draw);
-    setTimeout(()=>{ cancelAnimationFrame(raf); ctx.clearRect(0,0,canvas.width,canvas.height); },5000);
+      if(!scores.length)return -1;
+      return scores.reduce((a,b)=>a+b,0)/scores.length;
+    }catch(_){return -1;}
   }
 
-  function initQuote(){
-    _qi=Math.floor(Math.random()*QUOTES.length);
-    _renderQ(false);
-    setInterval(()=>{_qi=(_qi+1)%QUOTES.length;_renderQ(true);},18000);
+  // ── Pick quote based on current performance ────────────────────
+  function _pickPerfQuote(){
+    const score=_todayScore();
+    const streak=_studyStreak();
+    const avgRecent=_recentAvg(5);
 
-    const motiv=G('topbar-motiv');
-    if(motiv){
-      motiv.addEventListener('click',()=>{
-        if(_explodingQuote)return;
-        _explodingQuote=true;
-
-        // Fire the blast
-        _burstAt(motiv);
-
-        // Hide only the text children — use getElementById not querySelector
-        const txt=G('topbar-motiv-text');
-        const auth=G('topbar-motiv-author');
-        const dot=G('topbar-motiv-dot');
-        if(txt)  { txt.style.transition='opacity .2s ease';  txt.style.opacity='0'; }
-        if(auth) { auth.style.transition='opacity .2s ease'; auth.style.opacity='0'; }
-        if(dot)  { dot.style.transition='opacity .2s ease';  dot.style.opacity='0'; }
-
-        // Wait for blast to settle (~2.2s), THEN load new quote and fade in slowly
-        setTimeout(()=>{
-          _qi=(_qi+1)%QUOTES.length;
-          _renderQ(false); // load new text while still invisible
-
-          // Slow graceful fade-in over 1.1s
-          if(txt)  { txt.style.transition='opacity 1.1s ease';  txt.style.opacity='1'; }
-          if(auth) { auth.style.transition='opacity 1.3s ease'; auth.style.opacity='1'; }
-          if(dot)  { dot.style.transition='opacity .8s ease';   dot.style.opacity='1'; }
-
-          setTimeout(()=>{
-            if(txt)  { txt.style.transition='';  txt.style.opacity=''; }
-            if(auth) { auth.style.transition=''; auth.style.opacity=''; }
-            if(dot)  { dot.style.transition='';  dot.style.opacity=''; }
-            _explodingQuote=false;
-          },1400);
-        },2200);
-      });
+    // Streak milestones take priority
+    const milestones=[100,60,30,21,14,7,3];
+    for(const m of milestones){
+      if(streak===m) return PERF_QUOTES.streak[m];
     }
-    G('sb-quote')&&G('sb-quote').addEventListener('click',()=>{_qi=(_qi+1)%QUOTES.length;_renderQ(true);});
+
+    // Pick mood based on score
+    let pool;
+    if(score<0){
+      pool=PERF_QUOTES.fallback;
+    } else if(score<=15){
+      pool=PERF_QUOTES.struggling;
+    } else if(score<=35){
+      // Below average vs recent? Give a harder nudge
+      pool = (avgRecent>0 && score < avgRecent*0.6)
+        ? PERF_QUOTES.low
+        : PERF_QUOTES.low;
+    } else if(score<=60){
+      // If doing worse than usual, pick below_average
+      pool = (avgRecent>0 && score < avgRecent - 15)
+        ? PERF_QUOTES.below_average
+        : PERF_QUOTES.on_track;
+    } else if(score<=80){
+      // Good — but if above recent average, bump to great
+      pool = (avgRecent>0 && score > avgRecent + 10)
+        ? PERF_QUOTES.great
+        : PERF_QUOTES.on_track;
+    } else if(score<=95){
+      pool=PERF_QUOTES.great;
+    } else {
+      pool=PERF_QUOTES.perfect;
+    }
+
+    // Pick a random quote from the pool
+    return pool[Math.floor(Math.random()*pool.length)];
   }
-  function _renderQ(animate){
-    const q=QUOTES[_qi];
+
+  // ── Render a performance quote into topbar + sidebar ───────────
+  function _renderPerfQuote(animate){
+    const q=_pickPerfQuote();
+    _perfQuoteOverride=q;
     const tTxt=G('topbar-motiv-text'),tAuth=G('topbar-motiv-author');
     if(animate&&tTxt&&tAuth){
       tTxt.classList.add('fading');tAuth.classList.add('fading');
       setTimeout(()=>{
-        tTxt.textContent='"'+q.t+'"';tAuth.textContent='— '+q.a;
+        tTxt.textContent='"'+q.t+'"';
+        tAuth.textContent='— '+q.a;
         tTxt.classList.remove('fading');tAuth.classList.remove('fading');
       },320);
     } else {
@@ -3654,6 +3505,8 @@ const UI=(function(){
     if(G('sb-quote-text'))T('sb-quote-text','"'+q.t+'"');
     if(G('sb-quote-author'))T('sb-quote-author','— '+q.a);
   }
+
+  // _renderQ merged into initQuote above
 
   // Day streak: +1 only if ALL active habits were completed that day.
   // Missing any habit OR missing a day resets the streak to 0.
@@ -3694,7 +3547,47 @@ const UI=(function(){
     return habits.reduce((best,h)=>Math.max(best,h.longest||0),0);
   }
 
-  return{G,T,esc,p2,fmtT,fmtHM,fmtHr,toast,applyTheme,rSidebarRing,rSidebarWidget,rMobStrip,rDash,initQuote,QUOTES,_studyStreak,_studyStreakBust,_bestHabitStreak};
+  function _renderQ(animate){
+    // Delegates to performance-aware picker
+    _renderPerfQuote(animate);
+  }
+
+  function initQuote(){
+    // Start with a performance-aware quote immediately
+    _renderPerfQuote(false);
+    // Refresh every 30s based on current performance
+    setInterval(()=>{ _renderPerfQuote(true); }, 30000);
+
+    const motiv=G('topbar-motiv');
+    if(motiv){
+      motiv.addEventListener('click',()=>{
+        if(_explodingQuote)return;
+        _explodingQuote=true;
+        _burstAt(motiv);
+        const txt=G('topbar-motiv-text');
+        const auth=G('topbar-motiv-author');
+        const dot=G('topbar-motiv-dot');
+        if(txt)  { txt.style.transition='opacity .2s ease';  txt.style.opacity='0'; }
+        if(auth) { auth.style.transition='opacity .2s ease'; auth.style.opacity='0'; }
+        if(dot)  { dot.style.transition='opacity .2s ease';  dot.style.opacity='0'; }
+        setTimeout(()=>{
+          _renderPerfQuote(false);
+          if(txt)  { txt.style.transition='opacity 1.1s ease';  txt.style.opacity='1'; }
+          if(auth) { auth.style.transition='opacity 1.3s ease'; auth.style.opacity='1'; }
+          if(dot)  { dot.style.transition='opacity .8s ease';   dot.style.opacity='1'; }
+          setTimeout(()=>{
+            if(txt)  { txt.style.transition='';  txt.style.opacity=''; }
+            if(auth) { auth.style.transition=''; auth.style.opacity=''; }
+            if(dot)  { dot.style.transition='';  dot.style.opacity=''; }
+            _explodingQuote=false;
+          },1400);
+        },2200);
+      });
+    }
+    G('sb-quote')&&G('sb-quote').addEventListener('click',()=>{ _renderPerfQuote(true); });
+  }
+
+  return{G,T,esc,p2,fmtT,fmtHM,fmtHr,toast,applyTheme,rSidebarRing,rSidebarWidget,rMobStrip,rDash,initQuote,QUOTES,_studyStreak,_studyStreakBust,_bestHabitStreak,refreshPerfQuote:()=>_renderPerfQuote(true)};
 }());
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -3743,7 +3636,7 @@ const Timer=(function(){
       // Do NOT reset goalSecs here — user may want to start another session with same duration
       Storage.saveNow();
       if(typeof GDriveSync!=='undefined')GDriveSync.push&&GDriveSync.push(); // immediate push on pause
-      UI.toast('⏸ Paused & saved +'+fmtHM(elapsed));
+      UI.toast('⏸ Paused & saved +'+fmtHM(elapsed));setTimeout(()=>{if(typeof UI!=='undefined'&&UI.refreshPerfQuote)UI.refreshPerfQuote();},400);
       tick();timerUI();UI.rDash();Habits.renderSessions();
     } else {
       State.setTimer('saved',0);
@@ -4326,7 +4219,7 @@ const Habits=(function(){
       }
       return h;
     });
-    if(changed){State.setHabits(habits);Storage.saveNow();}
+    if(changed){State.setHabits(habits);Storage.saveNow();if(typeof UI!=='undefined'&&UI.refreshPerfQuote)UI.refreshPerfQuote();}
   }
 
   // Compute the longest ever consecutive streak for a habit across all log history
