@@ -2925,7 +2925,24 @@ const State=(function(){
   const KEY='habitual_v1';
   let _D=null;
 
-  function _def(){return{version:1,habits:[],logs:{},sessions:[],settings:{goalHours:6,theme:'light'},timer:{running:false,saved:0,startTs:null,goalSecs:0}};}
+  function _def(){return{version:2,habits:[],logs:{},sessions:[],settings:{goalHours:6,theme:'light'},timer:{running:false,saved:0,startTs:null,goalSecs:0}};}
+
+  // ── Schema migration runner ─────────────────────────────────────────────
+  // Each version block runs ONLY ONCE per stored dataset.
+  // To add a future migration: add an `if(v < N)` block and bump _def().version to N.
+  function _migrate(){
+    const v=_D.version||1;
+    if(v<2){
+      // v1→v2: Replace old _scoresRecomputed boolean with _scoresVersion string.
+      // If data was already recomputed under v1, treat it as v1 so recomputeAllHistoricalScores
+      // still re-runs once under v2 (to backfill goalHours-aware scoring).
+      if(_D._scoresRecomputed){
+        _D._scoresVersion='v1'; // will trigger one more recompute to apply goalHours fix
+      }
+      _D.version=2;
+    }
+    // Future: if(v<3){ ... _D.version=3; }
+  }
 
   function load(){
     try{
@@ -2978,11 +2995,11 @@ const State=(function(){
           if(startDay!==todayDay && absorbed>0){
             // Timer started on a DIFFERENT day — commit to that day's log
             const existing=_D.logs[startDay]||{studySecs:0,completedHabits:[],score:0};
-            _D.logs[startDay]={...existing,studySecs:(existing.studySecs||0)+absorbed};
+            _D.logs[startDay]={...existing,studySecs:(existing.studySecs||0)+absorbed,goalHours:existing.goalHours||_D.settings.goalHours};
             // Add as a session on that day too
             if(Array.isArray(_D.sessions)){
               _D.sessions=[..._D.sessions,{date:startDay,duration:absorbed,time:'auto'}];
-              if(_D.sessions.length>500)_D.sessions=_D.sessions.slice(-500);
+              if(_D.sessions.length>MAX_SESSIONS)_D.sessions=_D.sessions.slice(-MAX_SESSIONS);
             }
             // timer.saved stays 0 — today starts fresh
             _D.timer.saved=0;
@@ -2993,12 +3010,15 @@ const State=(function(){
           _D.timer.running=false;_D.timer.startTs=null;
         }
         if(_D.sessions.length>MAX_SESSIONS)_D.sessions=_D.sessions.slice(-MAX_SESSIONS);
-        // No log pruning — 7 years of daily logs ≈ 374KB, well within localStorage 5MB limit.
+        // ── Schema migration — runs forward-only migrations keyed by version number ──
+        _migrate();
         // ── Lifecycle field migration ────────────────────────────────────────
         // Backfill `created` and `archived` on habits that predate this feature.
         // `created` defaults to the earliest log date where the habit appears, or today.
         // `archived` is null for active habits; for previously-archived (active:false) habits
-        // we use today as a conservative fallback since the real date is unknown.
+        // we find the last log date the habit was completed, then set archived = next day.
+        // This prevents _activeHabitsOn() from including the habit on days AFTER it was
+        // actually deactivated, which would have inflated the denominator for recent scores.
         {
           const _allLogKeys=Object.keys(_D.logs).sort();
           const _todayStr=_today();
@@ -3009,8 +3029,20 @@ const State=(function(){
               u={...u,created:firstSeen||_todayStr};
             }
             if(!('archived' in u)){
-              // Legacy: active:false → treat as archived today (conservative); active:true → null
-              u={...u,archived:u.active===false?_todayStr:null};
+              if(u.active===false){
+                // Find last day this habit was completed — archived = the day after
+                const lastSeen=[..._allLogKeys].reverse().find(k=>(_D.logs[k]?.completedHabits||[]).includes(h.id));
+                if(lastSeen){
+                  const d=new Date(lastSeen);d.setDate(d.getDate()+1);
+                  const archDate=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+                  u={...u,archived:archDate};
+                }else{
+                  // Never completed — archived from earliest log date
+                  u={...u,archived:_allLogKeys[0]||_todayStr};
+                }
+              }else{
+                u={...u,archived:null};
+              }
             }
             return u;
           });
@@ -3064,7 +3096,10 @@ const State=(function(){
     // not today's active list — so adding/removing habits never corrupts past scores.
     const a=_activeHabitsOn(_D.habits,ds);
     const hp=a.length?(d.completedHabits.length/a.length)*100:0;
-    const gs=_D.settings.goalHours*3600;
+    // Use goalHours snapshot stored in the log entry (set when session was saved).
+    // Fall back to current setting only for today's live score or very old entries.
+    const goalH=d.goalHours||_D.settings.goalHours;
+    const gs=goalH*3600;
     const sp=gs?Math.min(100,(d.studySecs/gs)*100):0;
     const sc=Math.round(hp*0.4+sp*0.6);
     setLog(ds,{...d,score:sc});
@@ -3089,21 +3124,26 @@ const State=(function(){
   // FIX-B4: O(1) bulk replace for import — avoids O(n²) from n individual setLog spread calls
   function bulkImportLogs(obj){if(obj&&typeof obj==='object'&&!Array.isArray(obj)){_D.logs={...obj};_D._lastModified=Date.now();}}
 
+  // Score formula version — bump this string whenever the formula changes.
+  // recomputeAllHistoricalScores() re-runs automatically when version doesn't match stored data.
+  const SCORES_VERSION='v2';
+
   // Retroactively recompute every stored score using the correct per-date active-habit
-  // denominator. Runs once on first load after the lifecycle-fields fix, then never again
-  // (gated by _scoresRecomputed flag persisted in the save data).
+  // denominator and per-log goalHours snapshot.
   function recomputeAllHistoricalScores(){
-    if(_D._scoresRecomputed)return; // already done — skip every subsequent load
-    const gs=_D.settings.goalHours*3600;
+    if(_D._scoresVersion===SCORES_VERSION)return; // already on current formula — skip
+    const fallbackGs=_D.settings.goalHours*3600;
     Object.keys(_D.logs).forEach(k=>{
       const entry=_D.logs[k];
       if(!entry)return;
       const active=_activeHabitsOn(_D.habits,k);
       const hp=active.length?((entry.completedHabits||[]).length/active.length)*100:0;
+      const gs=(entry.goalHours||_D.settings.goalHours)*3600||fallbackGs;
       const sp=gs?Math.min(100,((entry.studySecs||0)/gs)*100):0;
       _D.logs[k]={...entry,score:Math.round(hp*0.4+sp*0.6)};
     });
-    _D._scoresRecomputed=true; // persisted in raw() — never runs again
+    _D._scoresVersion=SCORES_VERSION; // persisted in raw() — only re-runs on formula change
+    delete _D._scoresRecomputed;      // remove old boolean flag if present
   }
 
   // KEY must be exported so App.init can peek pre-load state
@@ -3117,12 +3157,14 @@ const Storage=(function(){
   let _t=null;
 
   function _write(data){
-    // Try primary key
+    // Write primary key — this is the main read source
     try{localStorage.setItem(State.KEY,data);}catch(e){console.error('Habitual: primary save failed',e);}
-    // Always also write backup key independently
+    // Write backup key — only used if primary is corrupted on next load
     try{localStorage.setItem(State.KEY+'_bk',data);}catch(e){console.error('Habitual: backup save failed',e);}
-    // Always stamp local modification time for GDrive conflict detection
+    // Stamp local modification time for GDrive conflict detection
     try{localStorage.setItem('habitual_local_ts',String(Date.now()));}catch(_){}
+    // Remove stale third-copy backup key from old versions (saves ~33% storage)
+    try{localStorage.removeItem('habitual_backup');localStorage.removeItem('habitual_backup_ts');}catch(_){}
   }
 
   function pruneSessions(){
@@ -3132,24 +3174,20 @@ const Storage=(function(){
     }
   }
 
-  let _saveCount=0; // FIX: declared before saveNow to avoid hoisting bug (was undefined on first call)
+  let _saveCount=0;
   function saveNow(){
     try{
       pruneSessions();
       _saveCount++;
-      if(_saveCount%50===0)autoBackup();
       const data=State.raw();
       const kb=Math.round(data.length/1024);
-      if(data.length>4*1024*1024)UI.toast('⚠ Storage '+kb+'KB — export your data now!','err');
+      // Warn at 3MB — gives user time to export before hitting the 5MB hard limit
+      if(data.length>3*1024*1024)UI.toast('⚠ Storage '+kb+'KB — export your data now!','err');
       _write(data);
     }catch(e){
       if(e&&e.name==='QuotaExceededError')UI.toast('⚠ Storage full! Export your data in Settings.','err');
       else console.error('Habitual: saveNow error',e);
     }
-  }
-
-  function autoBackup(){
-    try{const data=State.raw();localStorage.setItem('habitual_backup',data);localStorage.setItem('habitual_backup_ts',String(Date.now()));}catch(e){}
   }
   function saveSoon(){clearTimeout(_t);_t=setTimeout(saveNow,2000);}
 
@@ -3420,7 +3458,9 @@ const UI=(function(){
       const td=_today();
       const log=st.logs[td]||{};
       const active=_activeHabitsOn(st.habits,td);
-      const gs=st.settings.goalHours*3600;
+      // Use today's goalHours snapshot if present — stays consistent if user changes the setting
+      const goalH=log.goalHours||st.settings.goalHours;
+      const gs=goalH*3600;
       const timerSecs=(log.studySecs||0)+(st.timer.running?Timer.secs():0);
       const sp=gs?Math.min(100,(timerSecs/gs)*100):0;
       const hp=active.length?(((log.completedHabits||[]).length/active.length)*100):0;
@@ -3627,7 +3667,7 @@ const Timer=(function(){
     if(elapsed>=5){
       // commit elapsed to today's log immediately on pause
       const td=_today(),d=State.getOrCreateLog(td);
-      State.setLog(td,{...d,studySecs:(d.studySecs||0)+elapsed});
+      State.setLog(td,{...d,studySecs:(d.studySecs||0)+elapsed,goalHours:d.goalHours||State.get().settings.goalHours});
       const sess=[...State.get().sessions,{date:td,duration:elapsed,time:_nowT()}];
       if(sess.length>MAX_SESSIONS)sess.splice(0,sess.length-MAX_SESSIONS);
       State.setSessions(sess);
@@ -3675,7 +3715,7 @@ const Timer=(function(){
     if(typeof StillStudying!=='undefined')StillStudying.stop();
     State.setTimer('running',false);State.setTimer('startTs',null);
     const td=_today(),d=State.getOrCreateLog(td);
-    State.setLog(td,{...d,studySecs:(d.studySecs||0)+s});
+    State.setLog(td,{...d,studySecs:(d.studySecs||0)+s,goalHours:d.goalHours||State.get().settings.goalHours});
     const sess=[...State.get().sessions,{date:td,duration:s,time:_nowT()}];
     if(sess.length>MAX_SESSIONS)sess.splice(0,sess.length-MAX_SESSIONS);
     State.setSessions(sess);
@@ -5106,19 +5146,25 @@ const App=(function(){
     if(State.get().timer.running) StillStudying.start();
     LegAnim.init();
 
-    // ── Backup reminder — only if data exists and 7+ days since last export ─
+    // ── Sync health reminder ─────────────────────────────────────────────────
+    // iOS Safari can wipe localStorage after 7 days of inactivity.
+    // If Google Drive sync is not enabled, remind the user to turn it on.
+    // Also nudge users who haven't synced in 7+ days.
     setTimeout(()=>{
       try{
         const hasData=State.get().habits.length>0||Object.keys(State.get().logs).length>0;
-        if(!hasData)return; // brand new user — no reminder needed
-        const last=parseInt(localStorage.getItem('habitual_backup_ts')||'0');
-        if(last===0)return; // never exported yet — don't nag on first use, let them discover it
-        const daysSince=Math.floor((Date.now()-last)/(1000*60*60*24));
-        if(daysSince>=7){
-          UI.toast('📦 Backup reminder — export your data in Settings!','err');
+        if(!hasData)return;
+        const gtoken=localStorage.getItem('habitual_gtoken');
+        const lastSync=parseInt(localStorage.getItem('habitual_gsync_ts')||'0');
+        const daysSinceSync=lastSync?Math.floor((Date.now()-lastSync)/(864e5)):999;
+        if(!gtoken){
+          // Not connected to Google Drive at all — show a persistent nudge
+          UI.toast('💡 Enable Google Drive sync in Settings to protect your data!','err');
+        } else if(daysSinceSync>=7){
+          UI.toast('⚠ Last sync was '+daysSinceSync+' days ago — tap Sync in Settings!','err');
         }
       }catch(e){}
-    },3000);
+    },4000);
   }
 
   function _tickClock(){UI.T('clock-el',new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));}
@@ -5438,13 +5484,39 @@ const GDriveSync=(function(){
           return true;
         }
 
-        // Cloud is newer (or local is empty) — apply silently
-        console.log('GDriveSync: cloud newer, applying silently');
+        // Cloud is newer (or local is empty) — MERGE rather than overwrite.
+        // For habits: cloud wins (settings/config live on cloud).
+        // For logs: per-day merge — take union of completedHabits + max of studySecs.
+        //   This means checking off a habit on your phone AND your laptop both survive.
+        console.log('GDriveSync: merging cloud data');
         if(Array.isArray(parsed.habits))State.setHabits(parsed.habits);
-        if(parsed.logs&&typeof parsed.logs==='object')State.bulkImportLogs(parsed.logs);
-        if(Array.isArray(parsed.sessions))State.setSessions(parsed.sessions);
         if(parsed.settings&&typeof parsed.settings==='object')
           Object.keys(parsed.settings).forEach(k=>State.setSetting(k,parsed.settings[k]));
+        if(Array.isArray(parsed.sessions))State.setSessions(parsed.sessions);
+
+        // Per-day log merge
+        if(parsed.logs&&typeof parsed.logs==='object'&&!Array.isArray(parsed.logs)){
+          const localLogs=localData.logs||{};
+          const cloudLogs=parsed.logs;
+          const allDays=new Set([...Object.keys(localLogs),...Object.keys(cloudLogs)]);
+          const merged={};
+          allDays.forEach(day=>{
+            const l=localLogs[day];
+            const c=cloudLogs[day];
+            if(!l){merged[day]=c;return;}
+            if(!c){merged[day]=l;return;}
+            // Both have data — take the best of each field
+            const completedHabits=Array.from(new Set([
+              ...(l.completedHabits||[]),
+              ...(c.completedHabits||[])
+            ]));
+            const studySecs=Math.max(l.studySecs||0,c.studySecs||0);
+            // goalHours: prefer whichever entry has it stored; local wins on tie
+            const goalHours=l.goalHours||c.goalHours||undefined;
+            merged[day]={...c,...l,completedHabits,studySecs,...(goalHours?{goalHours}:{})};
+          });
+          State.bulkImportLogs(merged);
+        }
         // Stamp cloud's own timestamp — prevents push-back loop
         State.touch(cloudTs);
         // Write to localStorage cache directly (bypasses Storage.saveNow to avoid re-trigger)
