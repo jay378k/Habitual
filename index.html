@@ -2596,6 +2596,13 @@ kbd {
     <div class="field"><label class="field-lbl">Colour</label><div id="swatch-row"></div></div>
     <div class="field"><label class="field-lbl" for="h-notes">Notes (optional)</label><textarea id="h-notes" name="h-notes" class="field-input" rows="2" placeholder="Any notes…" aria-label="Habit notes"></textarea></div>
     <div class="field"><label class="field-lbl" for="h-target">Target Minutes <span style="font-weight:400;color:var(--t3)">(optional)</span></label><input type="number" id="h-target" name="h-target" class="field-input" placeholder="e.g. 30" min="0" max="480" value="0" style="width:120px" aria-label="Target minutes"></div>
+    <div class="field" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 2px">
+      <div>
+        <div class="field-lbl" style="margin-bottom:2px">Optional habit</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.5">Won't affect day streak if missed — bonus if done</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="h-optional"><span class="toggle-track"></span></label>
+    </div>
     <div class="modal-ft"><button type="button" class="btn-ghost" id="btn-modal-cancel">Cancel</button><button type="button" class="btn-accent" id="btn-modal-save" aria-label="Save habit">Save Habit</button></div>
   </div>
 </div>
@@ -3561,7 +3568,9 @@ const UI=(function(){
     const allHabits=State.get().habits;
     const todayActive=_activeHabitsOn(allHabits,todayKey);
     const todayLog=logs[todayKey];
-    const todayDone=todayActive.length>0&&todayActive.every(h=>(todayLog?.completedHabits||[]).includes(h.id));
+    // Optional habits excluded from streak — only required habits must be done
+    const requiredToday=todayActive.filter(h=>!h.optional);
+    const todayDone=requiredToday.length>0&&requiredToday.every(h=>(todayLog?.completedHabits||[]).includes(h.id));
     const logCount=Object.keys(logs).length||1;
     const d=new Date(todayKey+'T12:00:00');d.setDate(d.getDate()-1);
     let streak=0;
@@ -3569,7 +3578,8 @@ const UI=(function(){
       const k=_dStr(d);
       const log=logs[k];
       const activeOnDay=_activeHabitsOn(allHabits,k);
-      if(activeOnDay.length>0&&log&&activeOnDay.every(h=>(log.completedHabits||[]).includes(h.id))){
+      const requiredOnDay=activeOnDay.filter(h=>!h.optional);
+      if(requiredOnDay.length>0&&log&&requiredOnDay.every(h=>(log.completedHabits||[]).includes(h.id))){
         streak++;d.setDate(d.getDate()-1);
       }else break;
     }
@@ -3794,18 +3804,18 @@ const Habits=(function(){
 
   function openAdd(){
     _eid=null;_sc=SW[1];T('modal-title','Add Habit');
-    G('h-name').value='';G('h-cat').value='Study';G('h-notes').value='';G('h-target').value='0';
+    G('h-name').value='';G('h-cat').value='Study';G('h-notes').value='';G('h-target').value='0';if(G('h-optional'))G('h-optional').checked=false;
     _buildSw();G('modal-bg').style.display='flex';setTimeout(()=>G('h-name').focus(),80);
   }
   function openEdit(id){
     const h=State.get().habits.find(x=>x.id===id);if(!h)return;
     _eid=id;_sc=h.color;T('modal-title','Edit Habit');
-    G('h-name').value=h.name;G('h-cat').value=h.category;G('h-notes').value=h.notes||'';G('h-target').value=h.target||0;
+    G('h-name').value=h.name;G('h-cat').value=h.category;G('h-notes').value=h.notes||'';G('h-target').value=h.target||0;if(G('h-optional'))G('h-optional').checked=!!(h.optional);
     _buildSw();G('modal-bg').style.display='flex';setTimeout(()=>G('h-name').focus(),80);
   }
   function save(){
     const n=G('h-name').value.trim();if(!n){UI.toast('Enter a name!','err');return;}
-    const u={name:n,category:G('h-cat').value,target:parseInt(G('h-target').value)||0,color:_sc,notes:G('h-notes').value.trim()};
+    const u={name:n,category:G('h-cat').value,target:parseInt(G('h-target').value)||0,color:_sc,notes:G('h-notes').value.trim(),optional:!!(G('h-optional')?.checked)};
     let habits=[...State.get().habits];
     // FIX-B6: Prevent duplicate habit names (case-insensitive, ignore self on edit)
     const dupe=habits.find(h=>h.name.trim().toLowerCase()===n.toLowerCase()&&h.id!==_eid);
@@ -4066,7 +4076,9 @@ const Habits=(function(){
       row.onmouseenter=()=>{row.style.background='var(--p3)';};
       row.onmouseleave=()=>{row.style.background='var(--p2)';};
       const dot=document.createElement('span');dot.style.cssText=`width:8px;height:8px;border-radius:50%;background:${_safeColor(h.color)};flex-shrink:0`;
-      const name=document.createElement('span');name.style.cssText='font-size:11.5px;font-weight:600;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';name.textContent=h.name;
+      const name=document.createElement('span');name.style.cssText='font-size:11.5px;font-weight:600;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px';
+      const nameText=document.createTextNode(h.name);name.appendChild(nameText);
+      if(h.optional){const badge=document.createElement('span');badge.textContent='OPT';badge.style.cssText='font-size:8px;font-weight:700;letter-spacing:.6px;color:var(--t3);background:var(--p2);border:1px solid var(--line2);border-radius:3px;padding:1px 4px;flex-shrink:0';name.appendChild(badge);}
       const acts=document.createElement('div');acts.style.cssText='display:flex;align-items:center;gap:3px;flex-shrink:0';
       const mkBtn=(txt,action,clr='var(--t3)')=>{
         const b=document.createElement('button');b.className='h-act'+(action==='delete'?' del':'');
@@ -4515,7 +4527,7 @@ const Analytics=(function(){
       row.innerHTML=`
         <div style="display:flex;align-items:center;gap:6px;min-width:0">
           <span style="width:7px;height:7px;border-radius:50%;background:${h.color||'var(--accent)'};flex-shrink:0"></span>
-          <span style="font-size:11px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.esc(h.name)}</span>
+          <span style="font-size:11px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${UI.esc(h.name)}${h.optional?'<span style="font-size:7.5px;color:var(--t3);background:var(--p2);border-radius:3px;padding:0 3px;margin-left:3px;vertical-align:middle">opt</span>':''}</span>
         </div>
         <span style="font-size:11px;font-weight:700;color:var(--t2);text-align:center;font-family:'JetBrains Mono',monospace">${done}</span>
         <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
@@ -5147,22 +5159,17 @@ const App=(function(){
     LegAnim.init();
 
     // ── Sync health reminder ─────────────────────────────────────────────────
-    // iOS Safari can wipe localStorage after 7 days of inactivity.
-    // If Google Drive sync is not enabled, remind the user to turn it on.
-    // Also nudge users who haven't synced in 7+ days.
+    // Only warn if NOT signed in to Google Drive.
+    // If signed in, the 10s periodic sync keeps data fresh — no stale warning needed.
     setTimeout(()=>{
       try{
         const hasData=State.get().habits.length>0||Object.keys(State.get().logs).length>0;
         if(!hasData)return;
         const gtoken=localStorage.getItem('habitual_gtoken');
-        const lastSync=parseInt(localStorage.getItem('habitual_gsync_ts')||'0');
-        const daysSinceSync=lastSync?Math.floor((Date.now()-lastSync)/(864e5)):999;
-        if(!gtoken){
-          // Not connected to Google Drive at all — show a persistent nudge
-          UI.toast('💡 Enable Google Drive sync in Settings to protect your data!','err');
-        } else if(daysSinceSync>=7){
-          UI.toast('⚠ Last sync was '+daysSinceSync+' days ago — tap Sync in Settings!','err');
-        }
+        // If signed in to Google Drive — trust the periodic sync, no warning
+        if(gtoken)return;
+        // Not connected at all — show one-time nudge to enable sync
+        UI.toast('💡 Sign in to Google Drive in Settings to protect your data!','err');
       }catch(e){}
     },4000);
   }
