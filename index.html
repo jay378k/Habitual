@@ -5465,7 +5465,7 @@ const GDriveSync=(function(){
       const{error}=await _sb.auth.signInWithOAuth({
         provider:'google',
         options:{
-          redirectTo:window.location.origin+window.location.pathname,
+          redirectTo:window.location.href.split('?')[0].split('#')[0],
           queryParams:{prompt:'select_account'}
         }
       });
@@ -5561,6 +5561,21 @@ const GDriveSync=(function(){
       _origImport(file);
       setTimeout(()=>{if(_user&&_autoSync)syncToCloud();},500);
     };
+
+    // ── Focus Sync: pull when user switches back to this window/tab ──
+    let _lastFocusPull=0;
+    function _onFocusSync(){
+      if(!_user||!_autoSync)return;
+      const now=Date.now();
+      if(now-_lastFocusPull<3000)return; // debounce: at most once per 3s
+      _lastFocusPull=now;
+      console.log('SupabaseSync: focus detected, pulling latest…');
+      _pull();
+    }
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')_onFocusSync();
+    });
+    window.addEventListener('focus',_onFocusSync);
   }
 
   return{init,signIn,signOut,syncToCloud,syncFromCloud,syncNow,pull:_pull,push:_push};
