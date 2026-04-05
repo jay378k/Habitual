@@ -5709,6 +5709,17 @@ const GDriveSync=(function(){
               _pull();
             }).catch(()=>{
               _updateSidebarSynced('Tap Sync to reconnect');
+              // Still start periodic sync — token may refresh later via user interaction
+              _startPeriodicSync();
+              // Retry once after 3s in case GSI just needed more time
+              setTimeout(()=>{
+                if(!_token){
+                  try{
+                    const raw2=localStorage.getItem('habitual_gtoken');
+                    if(raw2){const obj2=JSON.parse(raw2);if(Date.now()<(obj2.exp-60000)){_token=obj2.token;_pull();}}
+                  }catch(_){}
+                }
+              },3000);
             });
           } else {
             _showSignedOut();
