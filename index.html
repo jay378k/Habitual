@@ -9,8 +9,8 @@
 <script>
 (function(){try{var d=JSON.parse(localStorage.getItem('habitual_v1'));if(d&&d.settings){var t=d.settings.theme;if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}else if(t==='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');}}}catch(e){}}());
 </script>
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Supabase JS Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2480,13 +2480,13 @@ kbd {
             </div>
           </div>
 
-          <!-- Google Drive Sync — moved here under goals -->
+          <!-- Cloud Sync (Supabase) -->
           <div class="panel gsync-panel" id="gsync-settings-panel" style="margin-bottom:14px">
-            <div class="section-label" style="margin-bottom:12px">☁️ GOOGLE DRIVE SYNC</div>
+            <div class="section-label" style="margin-bottom:12px">☁️ CLOUD SYNC</div>
 
             <!-- Signed out state -->
             <div id="gsync-signed-out-ui">
-              <div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:12px">Sign in to save your data to Google Drive — works on all devices, never lost.</div>
+              <div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:12px">Sign in to save your data to the cloud — works on all devices, never lost.</div>
               <button type="button" class="btn-accent" id="gsync-signin-btn" style="width:100%;justify-content:center;gap:8px;font-size:12px">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 Sign in with Google
@@ -2528,7 +2528,7 @@ kbd {
 
               <!-- Sign out -->
               <div style="margin-top:10px">
-                <button type="button" class="btn-danger" id="gsync-signout-btn" style="width:100%;justify-content:center;font-size:11.5px">Sign out of Google</button>
+                <button type="button" class="btn-danger" id="gsync-signout-btn" style="width:100%;justify-content:center;font-size:11.5px">Sign out</button>
               </div>
             </div>
           </div>
@@ -5195,151 +5195,21 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MODULE: GDriveSync — Google Drive App Data sync
-   Uses OAuth2 token (via Google Identity Services) + Drive REST API
-   File stored in appDataFolder (hidden, app-specific, no user clutter)
+   MODULE: GDriveSync — Cloud Sync (Supabase-powered)
+   Uses Supabase Auth (Google OAuth) + Supabase Database (habitual_data table)
+   Drop-in replacement: same public API as the old Google Drive version
    ══════════════════════════════════════════════════════════════════════════ */
 const GDriveSync=(function(){
-  const CLIENT_ID='24672677201-6eptdcbdp8ghmr1sv9p3ave5rqon3lrh.apps.googleusercontent.com';
-  const SCOPES='https://www.googleapis.com/auth/drive.appdata';
-  const FILE_NAME='habitual_v1_sync.json';
+  const SUPABASE_URL='https://ijwvnpqiviczdntmmpvz.supabase.co';
+  const SUPABASE_KEY='sb_publishable_G7QSPkHMmEv9d-s5lKy99g_WnoBn0Ts';
 
-  let _token=null;
-  let _fileId=null;
+  let _sb=null; // Supabase client
+  let _user=null;
   let _autoSync=true;
   let _syncTimer=null;
   let _userInfo={name:'',email:''};
-  let _tokenClient=null; // reuse same client instance
 
-  // ── Token management ─────────────────────────────────────────────────────
-  function _initTokenClient(prompt,resolve,reject){
-    // BUG FIX: always create a fresh client per request to avoid stale callback
-    const client=google.accounts.oauth2.initTokenClient({
-      client_id:CLIENT_ID,
-      scope:SCOPES,
-      callback:(resp)=>{
-        if(resp.error){reject(new Error(resp.error));return;}
-        _token=resp.access_token;
-        try{localStorage.setItem('habitual_gtoken',JSON.stringify({
-          token:_token,
-          exp:Date.now()+((resp.expires_in||3600)-60)*1000,
-          name:_userInfo.name,
-          email:_userInfo.email
-        }));}catch(_){}
-        resolve(_token);
-      }
-    });
-    client.requestAccessToken({prompt:prompt});
-  }
-
-  function _getToken(interactive){
-    return new Promise((resolve,reject)=>{
-      if(!window.google||!window.google.accounts){reject(new Error('GSI not loaded'));return;}
-      if(interactive){
-        // User-initiated sign-in: show popup directly
-        _initTokenClient('',resolve,reject);
-      } else {
-        // Silent refresh: try prompt='none' first, fall back to popup on failure
-        _initTokenClient('none',resolve,(err)=>{
-          _initTokenClient('',resolve,reject);
-        });
-      }
-    });
-  }
-
-  function _loadSavedToken(){
-    try{
-      const raw=localStorage.getItem('habitual_gtoken');
-      if(!raw)return false;
-      const obj=JSON.parse(raw);
-      // Check expiry with 5 min buffer
-      if(Date.now()<(obj.exp - 5*60*1000)){
-        _token=obj.token;
-        _userInfo={name:obj.name||'',email:obj.email||''};
-        return true;
-      }
-      // token expired — DO NOT remove from localStorage
-      // _tryRestore will use the stored name/email for re-auth attempts
-      _userInfo={name:obj.name||'',email:obj.email||''};
-    }catch(_){}
-    return false;
-  }
-
-  // ── Drive API helpers ─────────────────────────────────────────────────────
-  async function _ensureToken(){
-    // If token expired mid-session, refresh (silent first, popup fallback)
-    try{
-      const raw=localStorage.getItem('habitual_gtoken');
-      if(raw){
-        const obj=JSON.parse(raw);
-        if(Date.now()>=(obj.exp - 5*60*1000)){
-          await _getToken(false); // silent first, popup fallback
-        }
-      }
-    }catch(e){
-      console.warn('GDriveSync: token refresh failed',e);
-    }
-  }
-
-  async function _findFile(){
-    await _ensureToken();
-    const r=await fetch(
-      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${FILE_NAME}'&fields=files(id,name,modifiedTime)`,
-      {headers:{Authorization:'Bearer '+_token}}
-    );
-    // BUG FIX: handle 401 (token rejected by Google)
-    if(r.status===401){_token=null;throw new Error('Token expired');}
-    const d=await r.json();
-    if(d.files&&d.files.length>0){_fileId=d.files[0].id;return d.files[0];}
-    return null;
-  }
-
-  async function _uploadFile(content){
-    await _ensureToken();
-    const blob=new Blob([content],{type:'application/json'});
-    if(_fileId){
-      const r=await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${_fileId}?uploadType=media`,
-        {method:'PATCH',headers:{Authorization:'Bearer '+_token,'Content-Type':'application/json'},body:blob}
-      );
-      if(r.status===401){_token=null;throw new Error('Token expired');}
-      // BUG FIX: if file not found (404) reset fileId and retry as new file
-      if(r.status===404){_fileId=null;return _uploadFile(content);}
-      return r.ok;
-    } else {
-      const meta=JSON.stringify({name:FILE_NAME,parents:['appDataFolder']});
-      const form=new FormData();
-      form.append('metadata',new Blob([meta],{type:'application/json'}));
-      form.append('file',blob);
-      const r=await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-        {method:'POST',headers:{Authorization:'Bearer '+_token},body:form}
-      );
-      if(r.status===401){_token=null;throw new Error('Token expired');}
-      const d=await r.json();
-      if(d.id){_fileId=d.id;return true;}
-      return false;
-    }
-  }
-
-  async function _downloadFile(){
-    if(!_fileId){const f=await _findFile();if(!f)return null;}
-    await _ensureToken();
-    const r=await fetch(
-      `https://www.googleapis.com/drive/v3/files/${_fileId}?alt=media`,
-      {headers:{Authorization:'Bearer '+_token}}
-    );
-    if(r.status===401){_token=null;throw new Error('Token expired');}
-    if(r.status===404){_fileId=null;return null;}
-    if(!r.ok)return null;
-    return r.text();
-  }
-
-  // ── UI helpers ────────────────────────────────────────────────────────────
-  function _setBar(state,label){
-    // gsync-bar element removed from UI; state is tracked via sb-sync-status/sb-sync-dot-live
-  }
-
+  // ── UI helpers (kept identical to old module so all DOM IDs still work) ──
   function _updateLastSync(){
     const el=document.getElementById('gsync-last-sync');
     if(el){const now=new Date();el.textContent=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})+' · '+now.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
@@ -5372,10 +5242,8 @@ const GDriveSync=(function(){
   }
 
   function _showSignedIn(){
-    const name=_userInfo.name||'Google User';
+    const name=_userInfo.name||'User';
     const shortName=name.split(' ')[0];
-    _setBar('signed-in','✓ '+shortName);
-    // settings panel
     const out=document.getElementById('gsync-signed-out-ui');
     const inn=document.getElementById('gsync-signed-in-ui');
     if(out)out.style.display='none';
@@ -5385,7 +5253,7 @@ const GDriveSync=(function(){
     const av=document.getElementById('gsync-avatar');
     if(ne)ne.textContent=name;
     if(ee)ee.textContent=_userInfo.email;
-    if(av)av.textContent=(name.charAt(0)||'G').toUpperCase();
+    if(av)av.textContent=(name.charAt(0)||'U').toUpperCase();
     // sidebar card
     const sbOut=document.getElementById('sb-sync-out');
     const sbIn=document.getElementById('sb-sync-in');
@@ -5394,11 +5262,10 @@ const GDriveSync=(function(){
     const sbName=document.getElementById('sb-sync-name');
     const sbAv=document.getElementById('sb-sync-avatar');
     if(sbName)sbName.textContent=shortName;
-    if(sbAv)sbAv.textContent=(name.charAt(0)||'G').toUpperCase();
-    // Ensure dot starts as live-green after sign-in
+    if(sbAv)sbAv.textContent=(name.charAt(0)||'U').toUpperCase();
     const gDot=document.getElementById('gsb-status-dot');
     if(gDot){gDot.classList.remove('syncing','error','offline');}
-    _startPeriodicSync(); // keep in sync with other browsers
+    _startPeriodicSync();
     try{
       const ts=parseInt(localStorage.getItem('habitual_gsync_ts')||'0');
       const el=document.getElementById('gsync-last-sync');
@@ -5408,12 +5275,10 @@ const GDriveSync=(function(){
   }
 
   function _showSignedOut(){
-    _setBar('','Sign in');
     const out=document.getElementById('gsync-signed-out-ui');
     const inn=document.getElementById('gsync-signed-in-ui');
     if(out)out.style.display='block';
     if(inn)inn.style.display='none';
-    // sidebar
     const sbOut=document.getElementById('sb-sync-out');
     const sbIn=document.getElementById('sb-sync-in');
     if(sbOut)sbOut.style.display='flex';
@@ -5423,79 +5288,68 @@ const GDriveSync=(function(){
   // ── Core sync operations ──────────────────────────────────────────────────
   let _retryCount=0;
   async function syncToCloud(){
-    if(!_token)return false;
+    if(!_user)return false;
     try{
-      _setBar('syncing','Saving…');
       _updateSidebarSyncing();
-      const ok=await _uploadFile(State.raw());
-      if(ok){
-        _retryCount=0; // reset on success
-        _setBar('signed-in','✓ Saved');_updateLastSync();
-        setTimeout(()=>{_showSignedIn();},1500);
-      } else {
-        _setBar('error','Sync failed');_updateSidebarError();
-        _scheduleRetry();
-      }
-      return ok;
+      const raw=State.raw();
+      const data=JSON.parse(raw);
+      const{error}=await _sb.from('habitual_data').upsert({
+        id:_user.id,
+        data:data,
+        updated_at:new Date().toISOString()
+      },{onConflict:'id'});
+      if(error)throw error;
+      _retryCount=0;
+      _updateLastSync();
+      _updateSidebarSynced();
+      setTimeout(()=>{_showSignedIn();},500);
+      return true;
     }catch(e){
-      console.warn('GDriveSync upload error',e);
-      if(e.message==='Token expired'){
-        try{await _getToken(false);return syncToCloud();}catch(_){
-          _showSignedIn();
-          UI.toast('Session expired — tap Sign In to reconnect.','err');
-          return false;
-        }
-      }
-      _setBar('error','Sync failed');_updateSidebarError();
+      console.warn('SupabaseSync upload error',e);
+      _updateSidebarError();
       _scheduleRetry();
       return false;
     }
   }
 
-  // Retry on failure — backoff: 5s, 15s, 30s
   const _RETRY_DELAYS=[5000,15000,30000];
   function _scheduleRetry(){
-    if(_retryCount>=3){console.warn('GDriveSync: max retries reached');return;}
+    if(_retryCount>=3){console.warn('SupabaseSync: max retries reached');return;}
     const delay=_RETRY_DELAYS[_retryCount]||30000;
     _retryCount++;
-    console.log('GDriveSync: retry',_retryCount,'in',delay/1000,'s');
-    setTimeout(()=>{if(_token)syncToCloud();},delay);
+    console.log('SupabaseSync: retry',_retryCount,'in',delay/1000,'s');
+    setTimeout(()=>{if(_user)syncToCloud();},delay);
   }
 
   async function syncFromCloud(){
-    if(!_token)return false;
+    if(!_user)return false;
     try{
-      _updateSidebarSyncing(); // just the dot — no toast, no overlay
-      const text=await _downloadFile();
-      if(!text){
-        // First time — no file in Drive yet, push local data as seed
+      _updateSidebarSyncing();
+      const{data:row,error}=await _sb.from('habitual_data').select('data,updated_at').eq('id',_user.id).maybeSingle();
+      if(error)throw error;
+      if(!row){
+        // First time — no data in cloud yet, push local data as seed
         _showSignedIn();
         await syncToCloud();
         return false;
       }
-      const parsed=JSON.parse(text);
+      const parsed=row.data;
       if(parsed&&typeof parsed==='object'){
         const cloudTs=parsed._lastModified||0;
         const localData=State.get();
         const localTs=localData._lastModified||0;
-
-        // Safety: empty local always defers to cloud (prevents overwriting real data)
         const localIsEmpty=(localData.habits||[]).length===0&&
                             Object.keys(localData.logs||{}).length===0;
 
         if(!localIsEmpty&&localTs>0&&localTs>=cloudTs){
-          // Local is newer — push silently to cloud, no toast
-          console.log('GDriveSync: local newer, pushing silently');
+          console.log('SupabaseSync: local newer, pushing silently');
           _showSignedIn();_updateLastSync();_updateSidebarSynced();
           await syncToCloud();
           return true;
         }
 
-        // Cloud is newer (or local is empty) — MERGE rather than overwrite.
-        // For habits: cloud wins (settings/config live on cloud).
-        // For logs: per-day merge — take union of completedHabits + max of studySecs.
-        //   This means checking off a habit on your phone AND your laptop both survive.
-        console.log('GDriveSync: merging cloud data');
+        // Cloud is newer — MERGE (same logic as old module)
+        console.log('SupabaseSync: merging cloud data');
         if(Array.isArray(parsed.habits))State.setHabits(parsed.habits);
         if(parsed.settings&&typeof parsed.settings==='object')
           Object.keys(parsed.settings).forEach(k=>State.setSetting(k,parsed.settings[k]));
@@ -5512,27 +5366,23 @@ const GDriveSync=(function(){
             const c=cloudLogs[day];
             if(!l){merged[day]=c;return;}
             if(!c){merged[day]=l;return;}
-            // Both have data — take the best of each field
             const completedHabits=Array.from(new Set([
               ...(l.completedHabits||[]),
               ...(c.completedHabits||[])
             ]));
             const studySecs=Math.max(l.studySecs||0,c.studySecs||0);
-            // goalHours: prefer whichever entry has it stored; local wins on tie
             const goalHours=l.goalHours||c.goalHours||undefined;
             merged[day]={...c,...l,completedHabits,studySecs,...(goalHours?{goalHours}:{})};
           });
           State.bulkImportLogs(merged);
         }
-        // Stamp cloud's own timestamp — prevents push-back loop
         State.touch(cloudTs);
-        // Write to localStorage cache directly (bypasses Storage.saveNow to avoid re-trigger)
         try{
           const data=State.raw();
           localStorage.setItem(State.KEY,data);
           localStorage.setItem(State.KEY+'_bk',data);
         }catch(_){}
-        // Silent re-render — user sees updated data without any popup
+        // Silent re-render
         try{
           UI.applyTheme();
           Habits._decayStreaksNow();
@@ -5545,53 +5395,41 @@ const GDriveSync=(function(){
         return true;
       }
     }catch(e){
-      console.warn('GDriveSync download error',e);
-      if(e.message==='Token expired'){
-        try{await _getToken(false);return syncFromCloud();}
-        catch(_){
-          _showSignedIn();
-          // Only show error toast on auth failures — not routine syncs
-          UI.toast('Session expired — tap Sign In to reconnect.','err');
-          return false;
-        }
-      }
-      _updateSidebarError(); // just the dot turns red, no toast
+      console.warn('SupabaseSync download error',e);
+      _updateSidebarError();
     }
     return false;
   }
 
-  // Gate helpers removed — no blocking overlays
-  function _hideGate(){} // no-op kept for safety
-  function _showGateSignIn(){} // no-op — sign-in button is always visible in topbar
-  
+  function _hideGate(){}
+  function _showGateSignIn(){}
+
   // Push after every data change — immediate, guarded
   function scheduleSave(){
-    if(!_token||!_autoSync)return;
+    if(!_user||!_autoSync)return;
     clearTimeout(_syncTimer);
-    _syncTimer=setTimeout(()=>_push(),300); // 300ms debounce to batch rapid changes
+    _syncTimer=setTimeout(()=>_push(),300);
   }
 
-  // Immediate push — for critical actions
   async function syncNow(){
-    if(!_token||!_autoSync)return;
+    if(!_user||!_autoSync)return;
     clearTimeout(_syncTimer);
     _push();
   }
 
   // ── Sync engine ──────────────────────────────────────────────────────
   let _periodicTimer=null;
-  let _isSyncing=false;          // guard: prevent simultaneous syncs
-  let _pendingPull=false;        // queued pull request while syncing
-  let _pendingPush=false;        // queued push request while syncing
+  let _isSyncing=false;
+  let _pendingPull=false;
+  let _pendingPush=false;
 
-  // Safe pull wrapper — queues if already syncing
   async function _pull(){
-    if(!_token){return;}
+    if(!_user){return;}
     if(_isSyncing){_pendingPull=true;return;}
     _isSyncing=true;
     try{
       await syncFromCloud();
-    }catch(e){console.warn('GDriveSync _pull error',e);}
+    }catch(e){console.warn('SupabaseSync _pull error',e);}
     finally{
       _isSyncing=false;
       if(_pendingPull){_pendingPull=false;setTimeout(_pull,100);}
@@ -5599,14 +5437,13 @@ const GDriveSync=(function(){
     }
   }
 
-  // Safe push wrapper — queues if already syncing
   async function _push(){
-    if(!_token||!_autoSync){return;}
+    if(!_user||!_autoSync){return;}
     if(_isSyncing){_pendingPush=true;return;}
     _isSyncing=true;
     try{
       await syncToCloud();
-    }catch(e){console.warn('GDriveSync _push error',e);}
+    }catch(e){console.warn('SupabaseSync _push error',e);}
     finally{
       _isSyncing=false;
       if(_pendingPull){_pendingPull=false;setTimeout(_pull,100);}
@@ -5614,55 +5451,69 @@ const GDriveSync=(function(){
     }
   }
 
-  // Periodic pull — every 10s
   function _startPeriodicSync(){
     clearInterval(_periodicTimer);
     _periodicTimer=setInterval(()=>{
-      if(_token&&_autoSync)_pull();
+      if(_user&&_autoSync)_pull();
     }, 10*1000);
   }
 
   // ── Sign in / out ─────────────────────────────────────────────────────────
   async function signIn(){
-    // Remove cloud banner if visible
     try{const b=document.getElementById('cloud-banner');if(b)b.remove();}catch(_){}
-    _setBar('syncing','Connecting…');
     try{
-      await _getToken(true);
-      try{
-        const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
-          {headers:{Authorization:'Bearer '+_token}});
-        const u=await r.json();
-        _userInfo={name:u.name||u.email||'',email:u.email||''};
-        const raw=localStorage.getItem('habitual_gtoken');
-        if(raw){
-          const obj=JSON.parse(raw);
-          obj.name=_userInfo.name;obj.email=_userInfo.email;
-          localStorage.setItem('habitual_gtoken',JSON.stringify(obj));
+      const{error}=await _sb.auth.signInWithOAuth({
+        provider:'google',
+        options:{
+          redirectTo:window.location.origin+window.location.pathname,
+          queryParams:{prompt:'select_account'}
         }
-      }catch(_){}
-      _showSignedIn();
-      _startPeriodicSync();
-      await _pull(); // immediate pull on sign-in
+      });
+      if(error)throw error;
+      // After redirect, the session will be picked up by onAuthStateChange
     }catch(e){
-      console.warn('GDriveSync signIn error',e);
-      _setBar('error','Sign-in failed');
-      UI.toast('Google sign-in failed — please try again.','err');
+      console.warn('SupabaseSync signIn error',e);
+      UI.toast('Sign-in failed — please try again.','err');
     }
   }
 
-  function signOut(){
-    if(_token&&window.google){
-      try{google.accounts.oauth2.revoke(_token,()=>{});}catch(_){}
-    }
-    _token=null;_fileId=null;_userInfo={name:'',email:''};
-    try{localStorage.removeItem('habitual_gtoken');localStorage.removeItem('habitual_gsync_ts');}catch(_){}
+  async function signOut(){
+    try{await _sb.auth.signOut();}catch(_){}
+    _user=null;_userInfo={name:'',email:''};
+    try{localStorage.removeItem('habitual_gsync_ts');}catch(_){}
     _showSignedOut();
-    UI.toast('Signed out of Google Drive.');
+    UI.toast('Signed out.');
+  }
+
+  // ── Handle session from URL hash (Supabase OAuth redirect) ────────────
+  async function _handleAuthRedirect(){
+    // Supabase puts tokens in the URL hash after OAuth redirect
+    if(window.location.hash&&(window.location.hash.includes('access_token=')||window.location.hash.includes('refresh_token='))){
+      try{
+        // Let Supabase client parse the hash
+        const{data,error}=await _sb.auth.getSession();
+        if(data&&data.session){
+          // Clean up the URL
+          history.replaceState(null,'',window.location.pathname+window.location.search);
+        }
+      }catch(_){}
+    }
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  function init(){
+  async function init(){
+    // Initialize Supabase client
+    if(window.supabase&&window.supabase.createClient){
+      _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    } else {
+      console.warn('SupabaseSync: Supabase client not loaded');
+      _showSignedOut();
+      return;
+    }
+
+    // Handle OAuth redirect tokens in URL hash
+    await _handleAuthRedirect();
+
     // Settings panel buttons
     document.getElementById('gsync-signin-btn')?.addEventListener('click',signIn);
     document.getElementById('gsync-signout-btn')?.addEventListener('click',signOut);
@@ -5674,84 +5525,41 @@ const GDriveSync=(function(){
     document.getElementById('sb-signin-btn')?.addEventListener('click',signIn);
     document.getElementById('sb-syncnow-btn')?.addEventListener('click',async()=>{UI.toast('Syncing…');await syncToCloud();});
 
-    // ── Session restore: instant UI, background cloud sync ────────────
-    async function _tryRestore(){
-      if(_loadSavedToken()){
+    // Listen for auth state changes (login, logout, token refresh)
+    _sb.auth.onAuthStateChange(async(event,session)=>{
+      if(session&&session.user){
+        _user=session.user;
+        _userInfo={
+          name:session.user.user_metadata?.full_name||session.user.user_metadata?.name||session.user.email||'',
+          email:session.user.email||''
+        };
         _showSignedIn();
-        _startPeriodicSync(); // start 10s poll immediately
-        _pull();              // immediate first pull — no waiting
-      } else {
-        try{
-          const raw=localStorage.getItem('habitual_gtoken');
-          if(raw){
-            const obj=JSON.parse(raw);
-            _userInfo={name:obj.name||'',email:obj.email||''};
-            _showSignedIn();
-            // Try silent token refresh
-            new Promise((resolve,reject)=>{
-              if(!window.google||!window.google.accounts){reject(new Error('GSI not loaded'));return;}
-              google.accounts.oauth2.initTokenClient({
-                client_id:CLIENT_ID,scope:SCOPES,
-                callback:(resp)=>{
-                  if(resp.error){reject(new Error(resp.error));return;}
-                  _token=resp.access_token;
-                  try{localStorage.setItem('habitual_gtoken',JSON.stringify({
-                    token:_token,
-                    exp:Date.now()+((resp.expires_in||3600)-60)*1000,
-                    name:_userInfo.name,
-                    email:_userInfo.email
-                  }));}catch(_){}
-                  resolve(_token);
-                }
-              }).requestAccessToken({prompt:'none'});
-            }).then(()=>{
-              _startPeriodicSync();
-              _pull();
-            }).catch(()=>{
-              _updateSidebarSynced('Tap Sync to reconnect');
-              // Still start periodic sync — token may refresh later via user interaction
-              _startPeriodicSync();
-              // Retry once after 3s in case GSI just needed more time
-              setTimeout(()=>{
-                if(!_token){
-                  try{
-                    const raw2=localStorage.getItem('habitual_gtoken');
-                    if(raw2){const obj2=JSON.parse(raw2);if(Date.now()<(obj2.exp-60000)){_token=obj2.token;_pull();}}
-                  }catch(_){}
-                }
-              },3000);
-            });
-          } else {
-            _showSignedOut();
-          }
-        }catch(_){ _showSignedOut(); }
+        // Pull on initial sign-in or session restore
+        if(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED'){
+          _pull();
+        }
+      } else if(event==='SIGNED_OUT'){
+        _user=null;
+        _userInfo={name:'',email:''};
+        _showSignedOut();
       }
-    }
-
-    // GSI loads async — poll until ready (max 5s)
-    let _gsiWait=0;
-    const _gsiCheck=setInterval(()=>{
-      _gsiWait+=200;
-      if(window.google&&window.google.accounts){clearInterval(_gsiCheck);_tryRestore();}
-      else if(_gsiWait>=5000){clearInterval(_gsiCheck);_showSignedOut();}
-    },200);
+    });
 
     // Patch Storage.saveNow ONCE — every local save triggers a cloud push
     if(!Storage._gsynced){
       Storage._gsynced=true;
       const _orig=Storage.saveNow.bind(Storage);
       Storage.saveNow=function(){
-        _orig();         // write to localStorage first
-        scheduleSave();  // then push to cloud (300ms debounce)
+        _orig();
+        scheduleSave();
       };
     }
 
-    // BUG FIX: also sync after import so cloud gets updated data
+    // Also sync after import
     const _origImport=Storage.importData.bind(Storage);
     Storage.importData=function(file){
       _origImport(file);
-      // small delay to let import finish writing state
-      setTimeout(()=>{if(_token&&_autoSync)syncToCloud();},500);
+      setTimeout(()=>{if(_user&&_autoSync)syncToCloud();},500);
     };
   }
 
